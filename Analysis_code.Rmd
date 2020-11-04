@@ -1,0 +1,191 @@
+---
+title: "Week2"
+author: "Jingrui MU(300130858)"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+
+# 1 Introduction
+In 1866 Gregor Mendel published a seminal paper entitled *Experiments on Plant Hybridization*, which containing the foundations of modern genetics. However, Sir Ronald Fisher questioned Mendel's integrity claiming that Mendel's data agree better with his theory than expected under natural fluctuations. Therefore, it has been argued that Mendel's data is too good to be true since that time. In 2008, a group of scientists from different fields, Franklin (Physics and History of Science), Edwards (Biometry and Statistics), Fairbanks (Plant and Wildlife Sciences), Hartl (Biology and Genetics) and Seidenfeld (Philosophy and Statistics), published the book *Ending the Mendel-Fisher Controversy*. But It is not really the end of the controversy. In 2010, Ana M.Pires and Joao A. Branco published a paper entitled *A Statistical Model to Explain the Mendel-Fisher Controversy*, which proposed a statistical model to explain the issue. So I will reproduce the method they used and analyze the data to see how they explain the controversy. In section2, I will analyze p_values of the individual $\chi^2_{1}$ tests and explain why the Mendel's results were adjusted rather than truncated. In section3, I will reproduce the statistical in Ana M.Pires and Joao A.Branco's paper to see why it can explain the controversy.
+
+# 2 Analysis for p_values
+The idea, analyzing p_values, was explored by Seidenfeld (1998). For Fisher's analysis, we expect the p_values follow a uniform (0,1) distribution. Therefore, the plot of empirical cumulative distribution function (e.c.d.f) of the p_values should be close to diagonal of the $(0,1) \times (0,1)$ square. However, the e.c.d.f. plot in Firgure1 shows a difference from uniformity. Notation: the data is from Pires and Branco (Statistical Science, 2010)
+```{r}
+W1<-read.csv("F:/Genetics Analysis/Week2.csv",header=TRUE,sep=",")
+library(MASS)
+library(stringr)
+b <- as.data.frame(apply(str_split(W1$p0,"/",simplify = T),2,as.numeric))
+W1$p0<-b[,1]/b[,2]
+chi<-round((W1$n1-W1$n*W1$p0)/sqrt(W1$n*W1$p0*(1-W1$p0)),4)
+p_value<-round((1-pchisq(chi^2,1)),4)
+W1[,6]<-chi
+W1[,7]<-p_value
+names(W1) <- c("No.","n","n1","n-n1","p0","Chi","p_value")
+library(stats)
+y<-runif(100)
+random_numbers<-rnorm(84,mean=0,sd=10^(-7))
+x<-W1$p_value+random_numbers
+# x2<-seq(0,1,by=0.01)
+plot(ecdf(W1$p_value),  
+     xlim = c(0,1),
+     ylim = c(0,1),
+     col = "blue",
+     main = "Figure1",
+     xlab = "x",
+     ylab = "F(x)",
+     pch=20,
+     cex=0.5)
+# curve(x^2, 0, 1,add=TRUE, bty="l")
+abline(coef = c(0, 1), col = "red")
+```
+The visual difference is confirmed by a Kolmogorov-Smirnov (K-S) goodness-of-fit test (p_value=0.01574). We can therefore conclude with a high confidence that the distribution of the p_values deviates from a uniform (0,1) distribution.
+```{r}
+library(dgof)
+ks.test(x,'punif')
+```
+
+And it is natural to think about the kind of deviation and its meaning. Peris and Branco also plotted the cumulative distribution function (c.d.f) of the maximum of two uniform (0,1) random variables, $y=x^2$ in Figure2. 
+```{r}
+plot(ecdf(W1$p_value),  
+     xlim = c(0,1),
+     ylim = c(0,1),
+     col = "blue",
+     main = "Figure2",
+     xlab = "x",
+     ylab = "F(x)",
+     pch=20,
+     cex=0.5)
+curve(x^2, 0, 1,add=TRUE, bty="l")
+abline(coef = c(0, 1), col = "red")
+```
+The Firgure 2 provides a hint: it resembles the function $y=x^2$. It appears that some c.d.f. intermediate between the c.d.f. of a uniform (0,1) random variable and $y=x^2$ best fits the e.c.d.f. of the sample p_values.
+
+# 3 Statistical Model Proposed
+One explanation for this is the following: suppose Mendel has repeated some experiments, presumably those which deviate most from his theory, and reports only the best of the two. Peris and Branco described the procedure for selecting the data in a statistical model by assuming than an experiment is repeated whenever its p_value is smaller than $\alpha$, where $0 \leq \alpha \leq 1$ is a parameter fixed by the experimenter, and then only the one with largest p_value is reported. The c.d.f. of the p_values of the experiments reported is given by 
+
+$$
+F_{\alpha}(x)=x^2, \text{if } 0 \leq x \leq \alpha,(1)\\
+$$
+$$
+F_{\alpha}(x)=(1+\alpha)x-\alpha, \text{if } \alpha < x \leq 1.   (2)
+$$
+
+
+* Proof. For a given experiment, denote X be the p_value effectively reported. And then we have that $X=X_1$, if $X_1 \geq \alpha$ and $X=max(X_1,X_2)$, if $X_1 < \alpha$, where $X_1$ and $X_2$ represent the p_values obtained in these experiments. In ths derivation of $F_{\alpha}(x)=P(X \leq x)$, the two cases $0 \leq x \leq \alpha$ and $\alpha < x \leq 1$ are considered seperately. 
+* If $0 \leq x \leq \alpha$, 
+
+$$
+\begin{aligned}
+P(X \leq x)&=P(max(X_1,X_2)\leq x)\\
+&=P({X_1 \leq x} \cap {X_2} \leq x)\\
+&=P(X_1 \leq x)P(X_2 \leq x)\\
+&=x^2
+\end{aligned}
+$$
+
+* If $\alpha \leq x \leq 1$,  
+
+$$
+\begin{aligned}
+P(X \leq x) &= P(({X \leq x} \cap {X_1 \leq \alpha}) \cup ({X \leq x} \cap {X_1 \geq \alpha}))\\
+ &= P(({X \leq x} \cap {X_1 \leq \alpha}))+P({X \leq x} \cap {X_1 \geq \alpha}))\\
+ &= P({X_1 \leq \alpha} \cap {X_2 \leq x})+P(\alpha \leq X_1 \leq x)\\
+ &= x \times \alpha + (x-\alpha)
+ \end{aligned}
+$$
+
+In the model, $\alpha$ is unknown and it can be estimated using the sample of p_values. We can use **Minimum Kolmogoroc-Smirnov test statistic estimator (Easterling, 1976)** to estimate $\alpha$. The estimate is the value of $\alpha$ which minimizes the K-S statistic,  
+$$
+D(\alpha)=\mathop{sup}\limits_{x}|F_n(x)-F_{\alpha}(x)|
+$$
+$F_{\alpha}(x)$ is the c.d.f. of the p_values, which can be obtained from equation (1) and equation (2). And we can use $F^{-1}(u)$ to simulate random numbers from distribution $F_{\alpha}(x)$, and u is from uniform (0,1) distribution. 
+
+```{r}
+set.seed(1234)
+u2<-runif(100,min=0,max=1)
+sample_f<-function(alpha,u){
+  n<-length(u)
+  X<-rep(0,n)
+  for(i in 1:n){
+    if(u[i]>=0 & u[i]<alpha){
+      X[i]<-sqrt(u[i])
+    }
+    if(u[i]>alpha & u[i]<=1){
+      X[i]<-(u[i]+alpha)/(1+alpha)
+    }
+  }
+  return(X)
+}
+```
+
+After simulating different samples from $F_{\alpha}(x)$ based on different $\alpha$ values from 0 to 1, we can get different p_values and D statistics for the K-S test. And then we can plot the p_value($\alpha$) with different $\alpha$ values. From this plot, we can see which $\alpha$ can maximize the $p(\alpha)$. 
+
+```{r}
+set.seed(1234)
+alpha_s<-seq(0,1,by=0.001)
+samplef<-matrix(0,nrow=length(alpha_s),ncol=100)
+for(i in 1:length(alpha_s)){
+  samplef[i,]<-sample_f(alpha_s[i],u2)
+}
+
+ks_D<-rep(0,1001)
+ks_p<-rep(0,1001)
+# ks<-list(0,1001)
+for(j in 1:1001){
+  ks_p[j]<-ks.test(x,samplef[j,])$p.value
+  ks_D[j]<-ks.test(x,samplef[j,])$statistic
+  # ks_D[i]<-ks$p.value
+}
+library(ggplot2)
+data1<-data.frame(alpha_s,ks_p,ks_D)
+p1<-ggplot(data1,aes(alpha_s,ks_p))+geom_point()
+p1
+max(ks_p)
+which.max(ks_p)
+alpha_s[which.max(ks_p)]
+```
+
+From the above result, we can see that $\hat{\alpha}=0.267$ (P=0.9021). So we can use the $\alpha$ value to obtain the $F_{\alpha}(x)$ distribution and to do the K-S test as follows:
+```{r}
+sample_f0<-sample_f(0.01,u2)
+sample_f1<-sample_f(0.267,u2)
+ks.test(x,sample_f0)
+ks.test(x,sample_f1)
+```
+
+Therefore, we can see the p_value for the K-S test is 0.9021, which means we will accecpt null hypothesis and the c.d.f. of 84 p_values for the $\chi^2$ tests from the 84 experiments is similar with $F_{\alpha}(x)$ when $\alpha$=0.267. We also can use the plot of e.c.d.f. and c.d.f. to see there is no much difference betwee two of them. 
+
+```{r}
+f = function(x) {
+  sapply(x, function(x) {
+    y = numeric()
+    if (x >= 0 & x <= alpha_s[268])
+      y = x^2
+    else if (x > alpha_s[268] & x <= 1)
+      y = (1+alpha_s[268])*x-alpha_s[268]
+    return(y)
+  })
+}
+plot(ecdf(W1$p_value),  
+     xlim = c(0,1),
+     ylim = c(0,1),
+     col = "blue",
+     main = "Figure3",
+     xlab = "x",
+     ylab = "F(x)",
+     pch=20,
+     cex=0.5)
+curve(f(x),0,1,add=TRUE, bty="l")
+```
+The Figure3 confirms this is a good model fit. From the K-S test and the figure3, Paries and Branco made a conclusion that Mendel's data are *too good to be true* according to the assumption that all the data presented in Mendel's paper correspond to all the experiments Mendel performedm, or to a random selection from all the experiments. When this assumption is replaced by the statistical model, the results can no longer be considered too good. This model can be seen as an approximation for the omissions described by Mendel.  
+
+From this method, we can see that Peries and Branco started to construct model from assuming the previous assumptions are not true and then built the statistical model from the empirical plot. 
+
+
+
+
+
+
